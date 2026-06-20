@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import Image from "next/image";
+import { motion, AnimatePresence } from "framer-motion";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -28,39 +29,33 @@ const blocks = [
 
 export function ArchitecturalHeritage() {
   const sectionRef = useRef<HTMLDivElement>(null);
-  const textContainerRef = useRef<HTMLDivElement>(null);
+  const [activeIndex, setActiveIndex] = useState(0);
 
   useEffect(() => {
     if (!sectionRef.current) return;
 
     let ctx = gsap.context(() => {
-      const tl = gsap.timeline({
-        scrollTrigger: {
-          trigger: sectionRef.current,
-          start: "top top",
-          end: `+=${window.innerHeight * 2}`,
-          pin: true,
-          scrub: 1,
-        }
-      });
-
-      const textElements = gsap.utils.toArray(".text-block") as HTMLElement[];
-      
-      textElements.forEach((el, index) => {
-        // Animate in (overlap with previous animation out, if not first)
-        tl.fromTo(
-          el, 
-          { opacity: 0, y: 50 }, 
-          { opacity: 1, y: 0, duration: 1 }, 
-          index === 0 ? undefined : "-=0.5"
-        );
-        
-        // Hold slightly longer for readability
-        tl.to(el, { opacity: 1, duration: 1 });
-
-        // Animate out (unless last)
-        if (index !== textElements.length - 1) {
-          tl.to(el, { opacity: 0, y: -50, duration: 1 });
+      ScrollTrigger.create({
+        trigger: sectionRef.current,
+        start: "top top",
+        end: `+=${window.innerHeight * blocks.length}`,
+        pin: true,
+        scrub: 1,
+        onUpdate: (self) => {
+          // self.progress goes from 0 to 1
+          // We divide the progress evenly among the blocks
+          const progress = self.progress;
+          const index = Math.min(
+            blocks.length - 1,
+            Math.floor(progress * blocks.length)
+          );
+          
+          setActiveIndex((prev) => {
+            if (prev !== index) {
+              console.log(`Scroll progress: ${progress.toFixed(2)}, Active Index: ${index}`);
+            }
+            return index;
+          });
         }
       });
     }, sectionRef);
@@ -94,23 +89,23 @@ export function ArchitecturalHeritage() {
       </div>
 
       {/* Scrolling Text on Right */}
-      <div
-        ref={textContainerRef}
-        className="relative z-10 flex w-full flex-col items-center justify-center lg:w-1/2"
-      >
+      <div className="relative z-10 flex w-full flex-col items-center justify-center lg:w-1/2">
         <div className="relative h-full w-full max-w-xl">
-          {blocks.map((block, index) => (
-            <div
-              key={block.title}
-              className="text-block absolute inset-0 flex flex-col justify-center px-8 text-ivory opacity-0"
-              style={{ pointerEvents: 'none' }}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeIndex}
+              initial={{ opacity: 0, y: 50 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -50 }}
+              transition={{ duration: 0.5, ease: "easeInOut" }}
+              className="absolute inset-0 flex flex-col justify-center px-8 text-ivory"
             >
-              <h3 className="font-serif text-5xl md:text-7xl mb-6 text-brick">{block.title}</h3>
+              <h3 className="font-serif text-5xl md:text-7xl mb-6 text-brick">{blocks[activeIndex].title}</h3>
               <p className="font-sans text-xl md:text-2xl leading-relaxed text-ivory/80">
-                {block.description}
+                {blocks[activeIndex].description}
               </p>
-            </div>
-          ))}
+            </motion.div>
+          </AnimatePresence>
         </div>
       </div>
     </section>
